@@ -6,37 +6,46 @@ from Crypto.Util.Padding import pad
 from matplotlib.pyplot import imread
 import binascii
 from PIL import Image
-from io import BytesIO
 
-image= imread('Image-Assignment2.bmp')
-
+image = imread('Image-Assignment2.bmp')
 key = binascii.unhexlify('770A8A65DA156D24EE2A093277530142')
 
 #AES.MODE_ECB
 #AES.MODE_CBC
 #AES.MODE_CFB
 
-cipher = AES.new(key, AES.MODE_CFB)
-p_bytes = image.tobytes()
-left_over = len(p_bytes)%16
-c_bytes = bytearray()
+class AESImageEncryption:
+    def __update_params(self, mode):
+        self.__cipher = AES.new(key, mode)
+        self.__left_over = len(self.__p_bytes)%16
+        self.__c_bytes = bytearray()
 
-def get_c_bytes(block):
-    return bytearray(cipher.encrypt(block)) 
+    def __init__(self, image, mode):
+        self.__p_bytes = image.tobytes()
+        self.__update_params(mode)
 
-def sub_bytes(p_bytes, len):
-    return p_bytes[0:len]
+    def change_mode(self, mode):
+        self.__update_params(mode)
 
-for i in range(0, len(p_bytes), 16):
-    block = p_bytes[i:i+16]
-    c_bytes += get_c_bytes(block)
+    def __encrypt_block(self, block):
+        return bytearray(self.__cipher.encrypt(block)) 
 
-if(left_over > 0):
-    block = pad(p_bytes[len(p_bytes)-left_over:len(p_bytes)], AES.block_size)
-    c_bytes += get_c_bytes(block)
+    def __trim_cipher(self):
+        self.__c_bytes = self.__c_bytes[0:len(self.__c_bytes)-self.__left_over]
 
-c_bytes = sub_bytes(c_bytes, len(p_bytes))
+    def encrypt(self):
+        for i in range(0, len(self.__p_bytes), 16):
+            block = self.__p_bytes[i:i+16]
+            self.__c_bytes += self.__encrypt_block(block)
 
-print(len(p_bytes), len(c_bytes))
-image = Image.frombytes('RGB', (image.shape[1], image.shape[0]), bytes(c_bytes))
-image.save('cfb.jpg')
+        if(self.__left_over > 0):
+            block = pad(self.__p_bytes[len(self.__p_bytes)-self.__left_over:len(self.__p_bytes)], AES.block_size)
+            self.__c_bytes += self.__encrypt_block(block)
+
+        self.__trim_cipher()
+
+        return Image.frombytes('RGB', (image.shape[1], image.shape[0]), bytes(self.__c_bytes))
+
+image_enc = AESImageEncryption(image, AES.MODE_CFB)
+c_image = image_enc.encrypt()
+c_image.save('cfb.jpg')
