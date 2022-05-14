@@ -14,8 +14,6 @@ class AESImageEncryption:
     def __update_params(self, mode):
         self.__mode = mode;
         self.__cipher = AES.new(self.__key, mode)
-        self.__left_over = len(self.__p_bytes)%16
-        self.__c_bytes = bytearray()
 
     def __init__(self, key, image, mode):
         self.__key = key
@@ -25,27 +23,14 @@ class AESImageEncryption:
     def change_mode(self, mode):
         self.__update_params(mode)
 
-    def __encrypt_block(self, block):
-        return bytearray(self.__cipher.encrypt(block)) 
-
-    def __trim_cipher(self):
-        self.__c_bytes = self.__c_bytes[0:len(self.__c_bytes)-self.__left_over]
-
     def encrypt(self):
         if(self.__mode != AES.MODE_CFB):
-            for i in range(0, len(self.__p_bytes), 16):
-                block = pad(self.__p_bytes[i:i+16], AES.block_size)
-                self.__c_bytes += self.__encrypt_block(block)
-
-            if(self.__left_over > 0):
-                block = pad(self.__p_bytes[len(self.__p_bytes)-self.__left_over:len(self.__p_bytes)], AES.block_size)
-                self.__c_bytes += self.__encrypt_block(block)
-
-            self.__trim_cipher()
+            c_bytes = self.__cipher.encrypt(pad(self.__p_bytes, AES.block_size))
+            left_over = len(self.__p_bytes) % 16
+            c_bytes = c_bytes[0:len(c_bytes)-left_over]
         else:
-            self.__c_bytes = self.__cipher.encrypt(self.__p_bytes)
-
-        return Image.frombytes('RGB', (image.shape[1], image.shape[0]), bytes(self.__c_bytes))
+            c_bytes = self.__cipher.encrypt(self.__p_bytes)
+        return Image.frombytes('RGB', (image.shape[1], image.shape[0]), bytes(c_bytes))
 
 image_enc = AESImageEncryption(key, image, AES.MODE_ECB)
 c_image = image_enc.encrypt()
