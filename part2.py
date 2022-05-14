@@ -10,12 +10,9 @@ from PIL import Image
 image = imread('Image-Assignment2.bmp')
 key = binascii.unhexlify('770A8A65DA156D24EE2A093277530142')
 
-#AES.MODE_ECB
-#AES.MODE_CBC
-#AES.MODE_CFB
-
 class AESImageEncryption:
     def __update_params(self, mode):
+        self.__mode = mode;
         self.__cipher = AES.new(key, mode)
         self.__left_over = len(self.__p_bytes)%16
         self.__c_bytes = bytearray()
@@ -34,18 +31,29 @@ class AESImageEncryption:
         self.__c_bytes = self.__c_bytes[0:len(self.__c_bytes)-self.__left_over]
 
     def encrypt(self):
-        for i in range(0, len(self.__p_bytes), 16):
-            block = self.__p_bytes[i:i+16]
-            self.__c_bytes += self.__encrypt_block(block)
+        if(self.__mode != AES.MODE_CFB):
+            for i in range(0, len(self.__p_bytes), 16):
+                block = self.__p_bytes[i:i+16]
+                self.__c_bytes += self.__encrypt_block(block)
 
-        if(self.__left_over > 0):
-            block = pad(self.__p_bytes[len(self.__p_bytes)-self.__left_over:len(self.__p_bytes)], AES.block_size)
-            self.__c_bytes += self.__encrypt_block(block)
+            if(self.__left_over > 0):
+                block = pad(self.__p_bytes[len(self.__p_bytes)-self.__left_over:len(self.__p_bytes)], AES.block_size)
+                self.__c_bytes += self.__encrypt_block(block)
 
-        self.__trim_cipher()
+            self.__trim_cipher()
+        else:
+            self.__c_bytes = self.__cipher.encrypt(self.__p_bytes)
 
         return Image.frombytes('RGB', (image.shape[1], image.shape[0]), bytes(self.__c_bytes))
 
-image_enc = AESImageEncryption(image, AES.MODE_CFB)
+image_enc = AESImageEncryption(image, AES.MODE_ECB)
+c_image = image_enc.encrypt()
+c_image.save('ecb.jpg')
+
+image_enc.change_mode(AES.MODE_CBC)
+c_image = image_enc.encrypt()
+c_image.save('cbc.jpg')
+
+image_enc.change_mode(AES.MODE_CFB)
 c_image = image_enc.encrypt()
 c_image.save('cfb.jpg')
